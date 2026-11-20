@@ -1,0 +1,17 @@
+# Conversion environment only: Linux x86_64, Python 3.12.
+# These versions preserve the existing compute conversion profile.
+rknn-toolkit2==2.3.2
+# Conversion runs on Linux x86_64 / CPython 3.12; no CUDA runtime is needed.
+torch @ https://download-r2.pytorch.org/whl/cpu/torch-2.2.0%2Bcpu-cp312-cp312-linux_x86_64.whl#sha256=8258824bec0181e01a086aef5809016116a97626af2dcbf932d4e0b192d9c1b8
+numpy==1.26.4
+onnx==1.16.1
+onnxruntime==1.20.1
+protobuf==4.25.4
+opencv-python==4.10.0.84
+setuptools==75.8.2
+scipy==1.14.1
+psutil==6.1.1
+ruamel.yaml==0.18.10
+tqdm==4.67.1
+fast-histogram==0.14
+sympy==1.12.1

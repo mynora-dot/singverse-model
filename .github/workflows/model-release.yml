@@ -1,0 +1,75 @@
+name: singverse-model-release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: models-${{ github.event.release.tag_name }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    if: ${{ !github.event.release.prerelease && !github.event.release.draft }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check the published release and its exact source tag
+        run: python scripts/publish.py preflight --tag "$RELEASE_TAG"
+      - name: Download and check the pinned upstream weights
+        run: python scripts/models.py fetch
+      - name: Install the isolated RKNN conversion toolchain
+        run: |
+          python -m venv .venv
+          .venv/bin/python -m pip install --disable-pip-version-check --require-hashes -r requirements-rknn.lock
+      - name: Convert RK3566, RK3568 and RK3588 models
+        run: .venv/bin/python scripts/models.py convert
+      - name: Build versioned downloads and offline import bundles
+        run: python scripts/models.py bundle --tag "$RELEASE_TAG" --output "dist/$RELEASE_TAG"
+      - name: Preserve identical bytes for publication retries
+        uses: actions/upload-artifact@v4
+        with:
+          name: singverse-model-${{ github.event.release.tag_name }}
+          path: dist/${{ github.event.release.tag_name }}/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 30
+
+  publish:
+    needs: build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/download-artifact@v4
+        with:
+          name: singverse-model-${{ github.event.release.tag_name }}
+          path: dist/${{ github.event.release.tag_name }}
+      - name: Upload checked model assets without replacing existing files
+        run: python scripts/publish.py upload --tag "$RELEASE_TAG" --output "dist/$RELEASE_TAG"
