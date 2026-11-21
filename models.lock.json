@@ -9,15 +9,19 @@
   "models": [
     {
       "id": "panns-cnn6",
+      "displayName": "原唱与伴奏识别-通用版",
+      "devices": "普通处理器（CPU），无需显卡",
+      "importTarget": "快速人声分类模型",
       "version": "audioset-0.343",
-      "purpose": "快速音轨角色识别",
+      "purpose": "识别音轨中的人声，辅助判断原唱和伴奏",
       "format": "pytorch",
       "license": "CC-BY-4.0",
       "backends": ["cpu"],
-      "importAsset": "panns-cnn6.zip",
+      "importAsset": "singverse-track-recognition-universal.zip",
       "files": [
         {
           "name": "Cnn6_mAP=0.343.pth",
+          "assetName": "singverse-track-recognition-universal.pth",
           "size": 23698321,
           "sha256": "8a17541944f2623a2a0164e072ac2f915dcedca99968083cc44bfbc7eb682275",
           "upstreamUrl": "https://zenodo.org/records/3987831/files/Cnn6_mAP%3D0.343.pth?download=1"
@@ -26,15 +30,19 @@
     },
     {
       "id": "htdemucs",
+      "displayName": "标准伴奏生成-通用版",
+      "devices": "普通处理器（CPU）、NVIDIA / AMD 显卡、Apple 芯片",
+      "importTarget": "标准分离模型",
       "version": "955717e8",
-      "purpose": "四轨分离与伴奏生成",
+      "purpose": "分离人声和乐器，生成标准伴奏",
       "format": "pytorch",
       "license": "MIT",
       "backends": ["cpu", "cuda", "rocm", "mps"],
-      "importAsset": "955717e8-8726e21a.th",
+      "importAsset": "singverse-accompaniment-universal.th",
       "files": [
         {
           "name": "955717e8-8726e21a.th",
+          "assetName": "singverse-accompaniment-universal.th",
           "size": 84141911,
           "sha256": "8726e21a993978c7ba086d3872e7608d7d5bfca646ca4aca459ffda844faa8b4",
           "upstreamUrl": "https://dl.fbaipublicfiles.com/demucs/hybrid_transformer/955717e8-8726e21a.th"
@@ -43,21 +51,26 @@
     },
     {
       "id": "htdemucs-openvino",
+      "displayName": "标准伴奏生成-Intel显卡版",
+      "devices": "Intel 显卡",
+      "importTarget": "Intel 优化模型",
       "version": "efb3d2bc54f93899b13b72b12c57001e19f09ae2",
-      "purpose": "Intel OpenVINO 四轨分离",
+      "purpose": "在 Intel 显卡上分离人声并生成伴奏",
       "format": "openvino-ir",
       "license": "MIT",
       "backends": ["openvino"],
-      "importAsset": "htdemucs-openvino.zip",
+      "importAsset": "singverse-accompaniment-intel.zip",
       "files": [
         {
           "name": "htdemucs_fwd.xml",
+          "assetName": "singverse-accompaniment-intel.xml",
           "size": 1477599,
           "sha256": "1557f96f11cf1667beca60679926bf43b393d3ff71eb4b9a625c6a07bc23f4a4",
           "upstreamUrl": "https://huggingface.co/Intel/demucs-openvino/resolve/efb3d2bc54f93899b13b72b12c57001e19f09ae2/htdemucs_v4/htdemucs_fwd.xml"
         },
         {
           "name": "htdemucs_fwd.bin",
+          "assetName": "singverse-accompaniment-intel.bin",
           "size": 104552746,
           "sha256": "74c4e1ebd68b648ea5a2aabefb65d5c3ba805658037fc97a37b84ce9c72f4eb1",
           "upstreamUrl": "https://huggingface.co/Intel/demucs-openvino/resolve/efb3d2bc54f93899b13b72b12c57001e19f09ae2/htdemucs_v4/htdemucs_fwd.bin"
@@ -66,15 +79,19 @@
     },
     {
       "id": "uvr-mdxnet-9482",
+      "displayName": "轻量人声伴奏分离-通用版",
+      "devices": "普通处理器（CPU）及后台支持的加速设备",
+      "importTarget": "轻量两轨分离模型",
       "version": "9482-9d78f8566fa8",
-      "purpose": "AI 干净档、人声与伴奏分离及 CPU 基准",
+      "purpose": "分离人声和伴奏，供轻量分离及 CPU 参考试跑使用",
       "format": "onnx",
       "license": "See upstream UVR model terms; personal use only until independently reviewed",
       "backends": ["cpu", "cuda", "tensorrt", "openvino", "openvino-cpu", "migraphx", "coreml", "directml", "rknn"],
-      "importAsset": "uvr-mdxnet-9482.zip",
+      "importAsset": "singverse-vocal-accompaniment-universal.zip",
       "files": [
         {
           "name": "UVR_MDXNET_9482.onnx",
+          "assetName": "singverse-vocal-accompaniment-universal.onnx",
           "size": 29704738,
           "sha256": "9d78f8566fa8198065214ab628be1de966a500c57786695aa4b13e2b27a7727d",
           "upstreamUrl": "https://github.com/k2-fsa/sherpa-onnx/releases/download/source-separation-models/UVR_MDXNET_9482.onnx"
@@ -83,12 +100,15 @@
     },
     {
       "id": "uvr-mdxnet-9482-rknn",
+      "displayName": "人声伴奏分离-瑞芯微版",
+      "devices": "瑞芯微 RK3566 / RK3568 / RK3588",
+      "importTarget": "瑞芯微 NPU 分离模型",
       "version": "9482-local-v1",
-      "purpose": "瑞芯微 NPU 人声与伴奏分离",
+      "purpose": "在瑞芯微设备上分离人声和伴奏",
       "format": "rknn",
       "license": "See upstream UVR model terms",
       "backends": ["rknn"],
-      "importAsset": "uvr-mdxnet-9482-rk3566-rk3568-rk3588.zip",
+      "importAsset": "singverse-vocal-accompaniment-rockchip.zip",
       "files": [],
       "conversion": {
         "sourceModel": "uvr-mdxnet-9482",

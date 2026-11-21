@@ -1,4 +1,4 @@
-name: singverse-model-release
+name: SingVerse 模型包发布
 
 on:
   release:
@@ -13,6 +13,7 @@ concurrency:
 
 jobs:
   build:
+    name: 构建模型下载与导入包
     if: ${{ !github.event.release.prerelease && !github.event.release.draft }}
     runs-on: ubuntu-24.04
     timeout-minutes: 90
@@ -28,19 +29,19 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Check the published release and its exact source tag
+      - name: 检查正式发布及对应源码
         run: python scripts/publish.py preflight --tag "$RELEASE_TAG"
-      - name: Download and check the pinned upstream weights
+      - name: 下载并校验固定版本的原始模型
         run: python scripts/models.py fetch
-      - name: Install the isolated RKNN conversion toolchain
+      - name: 安装隔离的瑞芯微模型转换工具
         run: |
           python -m venv .venv
           .venv/bin/python -m pip install --disable-pip-version-check --require-hashes -r requirements-rknn.lock
-      - name: Convert RK3566, RK3568 and RK3588 models
+      - name: 转换 RK3566、RK3568 和 RK3588 模型
         run: .venv/bin/python scripts/models.py convert
-      - name: Build versioned downloads and offline import bundles
+      - name: 按用途和设备生成模型下载文件
         run: python scripts/models.py bundle --tag "$RELEASE_TAG" --output "dist/$RELEASE_TAG"
-      - name: Preserve identical bytes for publication retries
+      - name: 保存完整发布文件以便失败重试
         uses: actions/upload-artifact@v4
         with:
           name: singverse-model-${{ github.event.release.tag_name }}
@@ -50,6 +51,7 @@ jobs:
           retention-days: 30
 
   publish:
+    name: 发布中文下载入口与模型指南
     needs: build
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -71,5 +73,5 @@ jobs:
         with:
           name: singverse-model-${{ github.event.release.tag_name }}
           path: dist/${{ github.event.release.tag_name }}
-      - name: Upload checked model assets without replacing existing files
+      - name: 上传模型并更新中文名称和下载指南
         run: python scripts/publish.py upload --tag "$RELEASE_TAG" --output "dist/$RELEASE_TAG"

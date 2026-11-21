@@ -15,6 +15,11 @@ import zipfile
 
 ROOT = Path(__file__).resolve().parents[1]
 RKNN = 'uvr-mdxnet-9482-rknn'
+METADATA_LABELS = {
+    'models.json': '模型清单（程序使用）.json',
+    'SHA256SUMS': '文件完整性校验（可选）',
+    'THIRD_PARTY_NOTICES.md': '第三方来源与许可.md',
+}
 
 
 def digest(path):
@@ -34,6 +39,13 @@ def safe_name(value):
     return value
 
 
+def safe_asset_name(value):
+    # GitHub normalizes special characters such as '=' in uploaded filenames.
+    if not isinstance(value, str) or not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.-]*', value) or value.endswith('.'):
+        raise ValueError('Invalid published asset name: ' + str(value))
+    return value
+
+
 def check_tag(tag):
     if not re.fullmatch(r'v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)', tag):
         raise ValueError('Use a stable release tag: vMAJOR.MINOR.PATCH')
@@ -44,19 +56,36 @@ def catalog():
     value = json.loads((ROOT / 'models.lock.json').read_text())
     if value['schemaVersion'] != 1:
         raise ValueError('Unsupported model lock format')
-    identifiers, names = set(), set()
+    identifiers, names, published = set(), set(), set(METADATA_LABELS)
     for model in value['models']:
         if model['id'] in identifiers:
             raise ValueError('Duplicate model id')
         identifiers.add(model['id'])
-        safe_name(model['importAsset'])
+        import_name = safe_asset_name(model['importAsset'])
+        for field in ('displayName', 'devices', 'importTarget'):
+            text = model[field]
+            if not isinstance(text, str) or not text.strip() or any(character in text for character in '\r\n#|'):
+                raise ValueError('Invalid model display text: ' + field)
+        raw_names = set()
         for file in model['files']:
             name = safe_name(file['name'])
+            asset_name = safe_asset_name(file['assetName'])
+            if asset_name in published or asset_name in raw_names:
+                raise ValueError('Duplicate published asset name: ' + asset_name)
+            raw_names.add(asset_name)
             if name in names or type(file['size']) is not int or file['size'] <= 0 or not re.fullmatch(r'[0-9a-f]{64}', file['sha256']):
                 raise ValueError('Invalid or duplicate model file')
             if not file['upstreamUrl'].startswith('https://'):
                 raise ValueError('Model sources must use HTTPS')
             names.add(name)
+        if import_name in published or (import_name.endswith('.zip') and import_name in raw_names):
+            raise ValueError('Duplicate published asset name: ' + import_name)
+        if not import_name.endswith('.zip') and (len(model['files']) != 1 or raw_names != {import_name}):
+            raise ValueError('A non-ZIP import must be its single published model file')
+        published.update(raw_names | {import_name})
+    sidecar = rknn_spec(value)['importAsset'] + '.sha256'
+    if sidecar in published:
+        raise ValueError('Duplicate published asset name: ' + sidecar)
     conversion = rknn_spec(value)['conversion']
     source = next(model for model in value['models'] if model['id'] == conversion['sourceModel'])
     if len(source['files']) != 1 or conversion['sourceSha256'] != source['files'][0]['sha256']:
@@ -66,6 +95,18 @@ def catalog():
 
 def rknn_spec(lock):
     return next(model for model in lock['models'] if model['id'] == RKNN)
+
+
+def asset_labels(lock):
+    labels = dict(METADATA_LABELS)
+    for model in lock['models']:
+        for file in model['files']:
+            labels[file['assetName']] = model['displayName'] + '（原始模型文件）' + Path(file['assetName']).suffix
+        # The baseline .th is both a raw weight and the user-facing import file.
+        labels[model['importAsset']] = model['displayName'] + Path(model['importAsset']).suffix
+    model = rknn_spec(lock)
+    labels[model['importAsset'] + '.sha256'] = model['displayName'] + '（完整包校验码）.sha256'
+    return labels
 
 
 def fetch(lock, cache, reuse_dirs=()):
@@ -199,8 +240,8 @@ def zip_files(path, members):
                 shutil.copyfileobj(input_stream, output_stream, 1024**2)
 
 
-def asset(path, base):
-    return {'name': path.name, 'size': path.stat().st_size, 'sha256': digest(path), 'url': base + quote(path.name, safe='')}
+def asset(path, base, label):
+    return {'name': path.name, 'label': label, 'size': path.stat().st_size, 'sha256': digest(path), 'url': base + quote(path.name, safe='')}
 
 
 def bundle(lock, cache, rknn_dir, output, tag):
@@ -209,6 +250,7 @@ def bundle(lock, cache, rknn_dir, output, tag):
         raise FileExistsError('Refusing to replace a release directory: ' + str(output))
     output.parent.mkdir(parents=True, exist_ok=True)
     base = 'https://github.com/' + lock['repository'] + '/releases/download/' + tag + '/'
+    labels = asset_labels(lock)
     with tempfile.TemporaryDirectory(prefix='.bundle-', dir=output.parent) as temporary:
         stage = Path(temporary) / 'release'
         stage.mkdir()
@@ -218,8 +260,8 @@ def bundle(lock, cache, rknn_dir, output, tag):
             for file in model['files']:
                 source = cache / file['name']
                 check_file(source, file)
-                shutil.copyfile(source, stage / file['name'])
-                entry['files'].append({**file, 'url': base + quote(file['name'], safe='')})
+                shutil.copyfile(source, stage / file['assetName'])
+                entry['files'].append({**file, 'url': base + quote(file['assetName'], safe='')})
             if model['id'] == RKNN:
                 specification = model['conversion']
                 members, variants = [], []
@@ -235,12 +277,12 @@ def bundle(lock, cache, rknn_dir, output, tag):
                 entry['variants'] = variants
             elif model['importAsset'].endswith('.zip'):
                 zip_files(stage / model['importAsset'], [(file['name'], cache / file['name']) for file in model['files']])
-            entry['import'] = asset(stage / model['importAsset'], base)
+            entry['import'] = asset(stage / model['importAsset'], base, labels[model['importAsset']])
             models.append(entry)
         rknn_asset = stage / rknn_spec(lock)['importAsset']
         rknn_asset.with_name(rknn_asset.name + '.sha256').write_text(digest(rknn_asset) + '  ' + rknn_asset.name + '\n')
         shutil.copyfile(ROOT / 'THIRD_PARTY_NOTICES.md', stage / 'THIRD_PARTY_NOTICES.md')
-        assets = [asset(path, base) for path in sorted(stage.iterdir())]
+        assets = [asset(path, base, labels[path.name]) for path in sorted(stage.iterdir())]
         write_json(stage / 'models.json', {'schemaVersion': 1, 'tag': tag, 'repository': lock['repository'], 'catalogSha256': digest(ROOT / 'models.lock.json'), 'consumer': lock['consumer'], 'models': models, 'assets': assets})
         (stage / 'SHA256SUMS').write_text(''.join(digest(path) + '  ' + path.name + '\n' for path in sorted(stage.iterdir())), encoding='utf-8')
         stage.rename(output)
@@ -253,21 +295,34 @@ def verify_release(directory, tag, lock=None):
     metadata = json.loads((directory / 'models.json').read_text())
     if metadata.get('schemaVersion') != 1 or metadata.get('tag') != tag or metadata.get('repository') != lock['repository'] or metadata.get('catalogSha256') != digest(ROOT / 'models.lock.json'):
         raise ValueError('Release metadata does not match the checked-out model catalog')
-    expected = {safe_name(file['name']): file for file in metadata['assets']}
+    expected = {safe_asset_name(file['name']): file for file in metadata['assets']}
     if len(expected) != len(metadata['assets']):
         raise ValueError('Duplicate release asset')
-    required = {file['name'] for model in lock['models'] for file in model['files']} | {model['importAsset'] for model in lock['models']} | {'THIRD_PARTY_NOTICES.md', rknn_spec(lock)['importAsset'] + '.sha256'}
+    labels = asset_labels(lock)
+    required = set(labels) - {'models.json', 'SHA256SUMS'}
     if set(expected) != required or {path.name for path in directory.iterdir()} != required | {'models.json', 'SHA256SUMS'}:
         raise ValueError('Missing or extra release assets')
+    base = 'https://github.com/' + lock['repository'] + '/releases/download/' + tag + '/'
     for name, file in expected.items():
+        if file.get('label') != labels[name] or file.get('url') != base + quote(name, safe=''):
+            raise ValueError('Release asset label or URL mismatch: ' + name)
         check_file(directory / name, file)
+    if len(metadata['models']) != len(lock['models']):
+        raise ValueError('Release models do not match the model catalog')
+    for entry, model in zip(metadata['models'], lock['models']):
+        fields = {**model, 'files': [{**file, 'url': base + quote(file['assetName'], safe='')} for file in model['files']], 'import': expected[model['importAsset']]}
+        if any(entry.get(key) != value for key, value in fields.items()):
+            raise ValueError('Release model does not match the model catalog: ' + model['id'])
     for model in lock['models']:
         for file in model['files']:
-            check_file(directory / file['name'], file)
+            check_file(directory / file['assetName'], file)
+    rknn_asset = directory / rknn_spec(lock)['importAsset']
+    if rknn_asset.with_name(rknn_asset.name + '.sha256').read_text() != digest(rknn_asset) + '  ' + rknn_asset.name + '\n':
+        raise ValueError('RKNN bundle checksum sidecar mismatch')
     sums = {}
     for line in (directory / 'SHA256SUMS').read_text().splitlines():
         checksum, name = line.split('  ', 1)
-        safe_name(name)
+        safe_asset_name(name)
         if name in sums or not re.fullmatch(r'[0-9a-f]{64}', checksum):
             raise ValueError('Invalid checksum entry')
         sums[name] = checksum
@@ -297,7 +352,7 @@ def main():
     lock = catalog()
     if args.command == 'list':
         for model in lock['models']:
-            print(model['id'] + '\t' + model['importAsset'])
+            print(model['displayName'] + '\t' + model['importAsset'] + '\t' + model['id'])
     elif args.command == 'fetch':
         fetch(lock, args.cache, args.reuse_dir)
     elif args.command == 'convert':

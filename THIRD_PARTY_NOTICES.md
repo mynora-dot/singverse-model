@@ -1,6 +1,6 @@
 # 第三方模型来源与署名
 
-这些权重来自各自上游，版权和使用条件归原作者所有。`models.lock.json` 记录原始下载地址、固定 revision、字节数和 SHA-256；每个 Release 的 `models.json` 记录本次实际分发文件及转换文件的摘要。本仓库不重新授权第三方权重。
+这些权重来自各自上游，版权和使用条件归原作者所有。`models.lock.json` 记录原始下载地址、固定 revision、字节数和 SHA-256；每个 Release 的 `models.json` 记录本次实际分发文件及转换文件的摘要。下文使用上游原始文件名，对应清单中的 `files[].name`；Release 下载附件使用 `files[].assetName` 中按用途命名的名称，原始权重字节和 ZIP 内部文件名保持不变。本仓库不重新授权第三方权重。
 
 ## PANNs Cnn6
 
