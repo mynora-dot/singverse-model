@@ -115,7 +115,7 @@ python3.12 scripts/models.py bundle --tag v1.0.0 --output dist/v1.0.0 \
 
 该流程需要 Release 在发布后仍允许添加附件；若启用了 GitHub 不可变 Release，预检会明确停止，须改用发布前上传附件的流程。
 
-1. 将审查后的源码提交并推送到本仓，创建 `vMAJOR.MINOR.PATCH` tag，再为它发布正式 GitHub Release。
+1. 将审查后的源码提交并推送到本仓，创建带中文变更说明的 `vMAJOR.MINOR.PATCH` 注释标签和 Release 草稿，再在 GitHub 发布。[中文标签与发布说明](https://github.com/mynora-dot/singverse-go-backend/blob/main/docs/multi-repository.md#中文标签与发布说明)
 2. `build` 检出准确 tag 的提交，核对正式 Release，下载并验证 5 个上游文件，安装隔离的转换依赖，生成三芯片 RKNN 文件及全部附件。
 3. 将完整发布目录保存为 30 天的 Actions artifact；`publish` 下载同一份字节、检查完整校验和，再上传到该 tag 的 Release，为所有附件设置中文显示名，并生成置顶下载指南。
 

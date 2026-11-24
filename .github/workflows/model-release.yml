@@ -1,4 +1,5 @@
 name: SingVerse 模型包发布
+run-name: 发布模型包 ${{ github.event.release.tag_name }}
 
 on:
   release:
@@ -21,12 +22,14 @@ jobs:
       RELEASE_TAG: ${{ github.event.release.tag_name }}
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
+      - name: 检出发布标签对应的源码
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - name: 配置 Python 环境
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
       - name: 检查正式发布及对应源码
@@ -61,15 +64,18 @@ jobs:
       RELEASE_TAG: ${{ github.event.release.tag_name }}
       GH_TOKEN: ${{ github.token }}
     steps:
-      - uses: actions/checkout@v4
+      - name: 检出发布标签对应的源码
+        uses: actions/checkout@v4
         with:
           ref: ${{ github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - name: 配置 Python 环境
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - uses: actions/download-artifact@v4
+      - name: 下载已构建的模型发布文件
+        uses: actions/download-artifact@v4
         with:
           name: singverse-model-${{ github.event.release.tag_name }}
           path: dist/${{ github.event.release.tag_name }}
