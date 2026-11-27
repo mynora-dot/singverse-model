@@ -33,3 +33,7 @@ __pycache__/
 credentials.json
 credentials.*.json
 secrets/
+
+# Local credentials and verification artifacts
+/private-reports/
+*.har

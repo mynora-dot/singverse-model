@@ -123,12 +123,6 @@ python3.12 scripts/models.py bundle --tag v1.0.0 --output dist/v1.0.0 \
 
 上传失败时使用 GitHub Actions 的 **Re-run failed jobs**，保留成功的 build 产物。重新转换会改变已发布内容时必须使用新 tag；不使用 `--clobber` 替换旧模型。
 
-本地检查：
-
-```sh
-python3.12 -m unittest discover -s tests -v
-```
-
 ## compute 接入
 
 包含新命名的 Release 完整可用后，再将 compute 的固定下载源切到该 tag，避免节点提前访问不存在的地址。模型 ID、安装文件名、版本、字节数和原始摘要沿用固定清单；下载地址读取本次 Release 的 `files[].url`，其附件名与 `files[].name` 不再相同。
@@ -142,7 +136,6 @@ python3.12 -m unittest discover -s tests -v
 | `scripts/setup-uvr-model.py` | UVR 安装脚本还有独立来源，应改为读取清单 |
 | `scripts/setup-audio-model.py` / `scripts/setup-fast-audio-model.py` | 已读取清单，跟随清单切换 |
 | RKNN 后台在线安装 | 使用该 tag 的通用 ZIP 地址及完整包 SHA-256，沿用已有显式下载接口 |
-| `tests/integration/test_audio_models.py` | 固定下载地址的断言同步更新并执行回归 |
 
 所有处理任务继续只读取本地已安装权重。模型安装后依然需要环境检测与真实试跑，不在用户播放或后台歌曲处理期间隐式联网取模型。
 
